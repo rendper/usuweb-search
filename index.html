@@ -3,27 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Usuweb Browser & Search</title>
+    <title>Usuweb Browser & Search Engine</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="logo.png">
 </head>
 <body>
+    <!-- Top Browser Bar with Tabs -->
     <div class="browser-header">
-        <div class="logo-container">
-            <img src="logo.png" alt="Usuweb Logo" class="app-logo">
-            <span class="logo-text">Usu<span>web</span></span>
+        <div id="tabContainer" class="tab-container">
+            <div class="tab active-tab" onclick="switchTab(0)">
+                <span>Usuweb Home</span>
+                <span class="close-tab" onclick="event.stopPropagation(); closeTab(0)">×</span>
+            </div>
+            <button class="new-tab-btn" onclick="addNewTab()">+</button>
         </div>
-        
-        <div class="search-bar">
-            <input type="text" id="searchInput" placeholder="Search Usuweb or enter website address..." onkeypress="handleKeyPress(event)">
-            <button onclick="navigateOrSearch()">Go</button>
-            <button onclick="loadUsuwebNews()" style="background-color: #2a2a2a; color: #4db8ff; border: 1px solid #4db8ff;">News</button>
+
+        <div class="navigation-toolbar">
+            <div class="logo-container">
+                <img src="logo.png" alt="Usuweb Logo" class="app-logo">
+                <span class="logo-text">Usu<span>web</span></span>
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search Wikipedia, BBC, YouTube, or enter URL..." onkeypress="handleKeyPress(event)">
+                <button onclick="navigateOrSearch()">Go</button>
+                <button onclick="loadUsuwebNews()" style="background-color: #2a2a2a; color: #4db8ff; border: 1px solid #4db8ff;">News</button>
+            </div>
         </div>
     </div>
 
-    <div class="main-content">
-        <div id="results" class="results-container"></div>
-        <iframe id="webViewer" class="web-viewer" style="display: none;"></iframe>
+    <!-- Main Content Area (Manages open tabs) -->
+    <div id="mainContentContainer" class="main-content">
+        <div id="results-0" class="results-container">
+            <div style="text-align: center; margin-top: 50px; color: #777;">
+                <h2>Welcome to Usuweb</h2>
+                <p>Your secure, independent web ecosystem.</p>
+            </div>
+        </div>
+        <iframe id="webViewer-0" class="web-viewer" style="display: none;"></iframe>
     </div>
 
     <script src="script.js"></script>
