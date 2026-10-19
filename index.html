@@ -3,19 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Usuweb Search</title>
+    <title>Usuweb Browser & Search</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
+    <div class="browser-header">
         <h1 class="logo">Usu<span>web</span></h1>
-        
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search the web with Usuweb..." onkeypress="handleKeyPress(event)">
-            <button onclick="performSearch()">Search</button>
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Search Usuweb or enter address (e.g. example.com)..." onkeypress="handleKeyPress(event)">
+            <button onclick="navigateOrSearch()">Go</button>
         </div>
+    </div>
 
+    <div class="main-content">
+        <!-- Results view for searches -->
         <div id="results" class="results-container"></div>
+        
+        <!-- Web viewer frame for direct URL browsing -->
+        <iframe id="webViewer" class="web-viewer" style="display: none;"></iframe>
     </div>
 
     <script src="script.js"></script>
