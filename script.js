@@ -1,6 +1,10 @@
 let tabs = [{ id: 0, title: "Usuweb Home", query: "", url: "" }];
 let activeTabId = 0;
 
+// Local persistent mock user database
+let userDatabase = JSON.parse(localStorage.getItem('usuweb_users')) || { "admin": "usuweb123" };
+let loggedInUser = localStorage.getItem('usuweb_logged_in') || null;
+
 function handleKeyPress(event) {
     if (event.key === "Enter") {
         navigateOrSearch();
@@ -22,7 +26,7 @@ function switchTab(id) {
 }
 
 function closeTab(id) {
-    if (tabs.length === 1) return; // Keep at least one tab
+    if (tabs.length === 1) return;
     tabs = tabs.filter(t => t.id !== id);
     if (activeTabId === id) {
         activeTabId = tabs[tabs.length - 1].id;
@@ -49,15 +53,12 @@ function renderTabs() {
 
 function createTabContent(id) {
     const mainContainer = document.getElementById('mainContentContainer');
-    
-    // Hide all existing tab contents
     document.querySelectorAll('.results-container, .web-viewer').forEach(el => el.style.display = 'none');
 
-    // Create new containers for this tab
     const resDiv = document.createElement('div');
     resDiv.id = `results-${id}`;
     resDiv.className = 'results-container';
-    resDiv.innerHTML = `<div style="text-align: center; margin-top: 50px; color: #777;"><h2>Usuweb Search</h2><p>Explore the web securely.</p></div>`;
+    resDiv.innerHTML = `<div style="text-align: center; margin-top: 50px; color: #777;"><h2>Usuweb Search</h2><p>Explore the secure web ecosystem.</p></div>`;
 
     const iframe = document.createElement('iframe');
     iframe.id = `webViewer-${id}`;
@@ -86,12 +87,16 @@ function navigateOrSearch() {
     const input = document.getElementById('searchInput').value.trim();
     if (!input) return;
 
-    // Update active tab title
     const currentTab = tabs.find(t => t.id === activeTabId);
     if (currentTab) currentTab.title = input.length > 15 ? input.substring(0, 15) + '...' : input;
     renderTabs();
 
-    // Check if download URL or direct webpage link
+    // INTERCEPT: Check if user entered the verification site url
+    if (input.toLowerCase().includes('usuwebverisite.lol.com')) {
+        renderVerificationPortal();
+        return;
+    }
+
     const isUrl = /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/.*)?$/i.test(input);
 
     if (isUrl) {
@@ -100,7 +105,6 @@ function navigateOrSearch() {
             url = 'https://' + url;
         }
 
-        // Handle direct file downloads robustly
         if (url.match(/\.(zip|exe|pdf|dmg|tar|gz|mp3|mp4)$/i)) {
             triggerSecureDownload(url);
             return;
@@ -114,6 +118,100 @@ function navigateOrSearch() {
     } else {
         performMultiSearch(input);
     }
+}
+
+// Render Authentication & Verification Portal
+function renderVerificationPortal() {
+    const resultsDiv = document.getElementById(`results-${activeTabId}`);
+    const webViewer = document.getElementById(`webViewer-${activeTabId}`);
+    webViewer.style.display = 'none';
+    resultsDiv.style.display = 'block';
+
+    if (loggedInUser) {
+        resultsDiv.innerHTML = `
+            <div style="max-width: 450px; margin: 40px auto; background: #1e1e1e; padding: 30px; border-radius: 12px; border: 1px solid #333; text-align: center;">
+                <h2 style="color: #4db8ff;">Usuweb Verification Dashboard</h2>
+                <p style="color: #6bbe6b; font-weight: bold;">Status: Authenticated & Verified</p>
+                <p style="color: #aaa; margin: 20px 0;">Logged in as: <strong>${loggedInUser}</strong></p>
+                <button onclick="logoutUser()" style="background: #ff5555; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;">Sign Out</button>
+            </div>
+        `;
+    } else {
+        resultsDiv.innerHTML = `
+            <div style="max-width: 450px; margin: 40px auto; background: #1e1e1e; padding: 30px; border-radius: 12px; border: 1px solid #333;">
+                <h2 style="color: #4db8ff; text-align: center; margin-bottom: 5px;">Usuweb Security Portal</h2>
+                <p style="color: #ffb84d; text-align: center; font-size: 0.9rem; margin-bottom: 20px;">⚠️ Warning: Valid account required for system verification.</p>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="color: #aaa; font-size: 0.85rem; display: block; margin-bottom: 5px;">Username</label>
+                    <input type="text" id="authUsername" placeholder="Enter username" style="width: 100%; padding: 10px; background: #121212; border: 1px solid #444; color: white; border-radius: 6px; box-sizing: border-box;">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="color: #aaa; font-size: 0.85rem; display: block; margin-bottom: 5px;">Password</label>
+                    <input type="password" id="authPassword" placeholder="Enter password" style="width: 100%; padding: 10px; background: #121212; border: 1px solid #444; color: white; border-radius: 6px; box-sizing: border-box;">
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="handleLogin()" style="flex: 1; background: #4db8ff; color: #121212; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;">Sign In</button>
+                    <button onclick="handleSignup()" style="flex: 1; background: #2a2a2a; color: #4db8ff; border: 1px solid #4db8ff; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;">Sign Up</button>
+                </div>
+                <p id="authMessage" style="text-align: center; margin-top: 15px; font-size: 0.9rem;"></p>
+            </div>
+        `;
+    }
+}
+
+function handleLogin() {
+    const user = document.getElementById('authUsername').value.trim();
+    const pass = document.getElementById('authPassword').value.trim();
+    const msg = document.getElementById('authMessage');
+
+    if (!user || !pass) {
+        msg.style.color = '#ff6b6b';
+        msg.innerText = 'Please enter both username and password.';
+        return;
+    }
+
+    if (userDatabase[user] && userDatabase[user] === pass) {
+        loggedInUser = user;
+        localStorage.setItem('usuweb_logged_in', user);
+        msg.style.color = '#6bbe6b';
+        msg.innerText = 'Success! Verifying session...';
+        setTimeout(renderVerificationPortal, 1000);
+    } else {
+        msg.style.color = '#ff6b6b';
+        msg.innerText = 'Incorrect username or password.';
+    }
+}
+
+function handleSignup() {
+    const user = document.getElementById('authUsername').value.trim();
+    const pass = document.getElementById('authPassword').value.trim();
+    const msg = document.getElementById('authMessage');
+
+    if (!user || !pass) {
+        msg.style.color = '#ff6b6b';
+        msg.innerText = 'Please enter a valid username and password to register.';
+        return;
+    }
+
+    if (userDatabase[user]) {
+        msg.style.color = '#ff6b6b';
+        msg.innerText = 'Username already exists. Please sign in.';
+        return;
+    }
+
+    userDatabase[user] = pass;
+    localStorage.setItem('usuweb_users', JSON.stringify(userDatabase));
+    msg.style.color = '#6bbe6b';
+    msg.innerText = 'Account created and saved successfully! You can now sign in.';
+}
+
+function logoutUser() {
+    loggedInUser = null;
+    localStorage.removeItem('usuweb_logged_in');
+    renderVerificationPortal();
 }
 
 async function triggerSecureDownload(fileUrl) {
@@ -136,7 +234,6 @@ async function triggerSecureDownload(fileUrl) {
 
         resultsDiv.innerHTML = `<p style="color: #6bbe6b; text-align: center; margin-top: 20px;">Download completed successfully!</p>`;
     } catch (e) {
-        // Fallback to direct window open if CORS restricts fetch
         window.open(fileUrl, '_blank');
         resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">File opened in external download stream.</p>`;
     }
