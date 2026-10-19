@@ -11,11 +11,10 @@ function navigateOrSearch() {
 
     if (!input) return;
 
-    // Check if user entered a URL (e.g. example.com, http://..., or www...)
+    // Check if user entered a direct website address (e.g. example.com or http://...)
     const isUrl = /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/.*)?$/i.test(input);
 
     if (isUrl) {
-        // Mode 1: Acts like Edge / Chrome (Direct Website Browser)
         resultsDiv.style.display = 'none';
         webViewer.style.display = 'block';
         
@@ -25,7 +24,6 @@ function navigateOrSearch() {
         }
         webViewer.src = url;
     } else {
-        // Mode 2: Acts like Google / DuckDuckGo (Web Search Engine)
         webViewer.style.display = 'none';
         resultsDiv.style.display = 'block';
         performSearch(input);
@@ -34,38 +32,63 @@ function navigateOrSearch() {
 
 async function performSearch(query) {
     const resultsDiv = document.getElementById('results');
-    resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">Searching Usuweb for "${query}"...</p>`;
+    resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">Searching Usuweb network for "${query}"...</p>`;
 
     try {
-        // Query Wikipedia Open Search directly for instant custom result cards
-        const response = await fetch(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=10&prop=extracts&exintro=1&explaintext=1&exsentences=2&format=json&origin=*`);
-        const data = await response.json();
+        // Querying public multi-engine search API for universal web results
+        const response = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`);
+        const textHtml = await response.text();
+        
+        // Parse the returned HTML search results cleanly
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(textHtml, 'text_html');
+        const results = doc.querySelectorAll('.result');
 
-        if (!data.query || !data.query.pages) {
-            resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center;">No results found on Usuweb for "${query}".</p>`;
+        if (!results || results.length === 0) {
+            resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center;">No web results found for "${query}" on Usuweb.</p>`;
             return;
         }
 
-        const pages = Object.values(data.query.pages);
-        resultsDiv.innerHTML = ''; // Clear loading state
+        resultsDiv.innerHTML = ''; // Clear loading message
 
-        pages.forEach(page => {
-            const pageUrl = `https://en.wikipedia.org/?curid=${page.pageid}`;
-            const snippet = page.extract ? page.extract : 'Click link below to open full page...';
+        let count = 0;
+        results.forEach(item => {
+            if (count >= 10) return;
+            const titleElem = item.querySelector('.result__title');
+            const snippetElem = item.querySelector('.result__snippet');
+            const linkElem = item.querySelector('.result__url');
 
-            const resultElement = document.createElement('div');
-            resultElement.className = 'result-item';
-            resultElement.innerHTML = `
-                <a href="#" onclick="openInViewer('${pageUrl}')">${page.title}</a>
-                <p>${snippet}</p>
-                <small style="color: #4db8ff; font-size: 0.8rem;">${pageUrl}</small>
-            `;
-            resultsDiv.appendChild(resultElement);
+            if (titleElem && linkElem) {
+                const title = titleElem.textContent.trim();
+                const rawUrl = linkElem.getAttribute('href');
+                const snippet = snippetElem ? snippetElem.textContent.trim() : 'Explore this website on Usuweb.';
+                
+                // Clean up destination link
+                let finalUrl = rawUrl;
+                if (rawUrl && rawUrl.includes('uddg=')) {
+                    const match = rawUrl.match(/uddg=([^&]+)/);
+                    if (match) finalUrl = decodeURIComponent(match[1]);
+                }
+
+                const resultElement = document.createElement('div');
+                resultElement.className = 'result-item';
+                resultElement.innerHTML = `
+                    <a href="#" onclick="openInViewer('${finalUrl}')">${title}</a>
+                    <p>${snippet}</p>
+                    <small style="color: #4db8ff; font-size: 0.8rem;">${finalUrl}</small>
+                `;
+                resultsDiv.appendChild(resultElement);
+                count++;
+            }
         });
+
+        if (count === 0) {
+            resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center;">No valid web entries found for "${query}".</p>`;
+        }
 
     } catch (error) {
         console.error('Usuweb Search Error:', error);
-        resultsDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Error connecting to Usuweb search servers.</p>`;
+        resultsDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Network error while querying Usuweb servers.</p>`;
     }
 }
 
