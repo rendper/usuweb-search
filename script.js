@@ -54,7 +54,7 @@ function createTabContent(id) {
     const resDiv = document.createElement('div');
     resDiv.id = `results-${id}`;
     resDiv.className = 'results-container';
-    resDiv.innerHTML = `<div style="text-align: center; margin-top: 50px; color: #777;"><h2>Usuweb Open Browser</h2><p>Search millions of websites across the live internet.</p></div>`;
+    resDiv.innerHTML = `<div style="text-align: center; margin-top: 50px; color: #777;"><h2>Usuweb Browser</h2><p>Search millions of websites across the live internet.</p></div>`;
 
     const iframe = document.createElement('iframe');
     iframe.id = `webViewer-${id}`;
@@ -87,13 +87,8 @@ function navigateOrSearch() {
     if (currentTab) currentTab.title = input.length > 15 ? input.substring(0, 15) + '...' : input;
     renderTabs();
 
-    // Local check for verification page
     if (input.toLowerCase() === 'verify.html' || input.toLowerCase() === 'verify') {
-        const webViewer = document.getElementById(`webViewer-${activeTabId}`);
-        const resultsDiv = document.getElementById(`results-${activeTabId}`);
-        resultsDiv.style.display = 'none';
-        webViewer.style.display = 'block';
-        webViewer.src = 'verify.html';
+        openInViewer('verify.html');
         return;
     }
 
@@ -110,9 +105,9 @@ function navigateOrSearch() {
             return;
         }
 
-        openExternalSite(url);
+        openInViewer(url);
     } else {
-        performRealWebSearch(input);
+        performPrioritizedWebSearch(input);
     }
 }
 
@@ -136,74 +131,92 @@ async function triggerSecureDownload(fileUrl) {
 
         resultsDiv.innerHTML = `<p style="color: #6bbe6b; text-align: center; margin-top: 20px;">Download completed successfully!</p>`;
     } catch (e) {
-        window.open(fileUrl, '_blank');
-        resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">File opened in external download stream.</p>`;
+        openInViewer(fileUrl);
+        resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">File opened in viewer stream.</p>`;
     }
 }
 
-// Real Open Web Search across millions of sites with real URLs
-async function performRealWebSearch(query) {
+// Prioritized Open Web Search (Puts top direct matches first, followed by massive web coverage)
+async function performPrioritizedWebSearch(query) {
     const resultsDiv = document.getElementById(`results-${activeTabId}`);
     const webViewer = document.getElementById(`webViewer-${activeTabId}`);
     
     webViewer.style.display = 'none';
     resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">Searching the global web for "<strong>${query}</strong>"...</p>`;
+    resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">Searching global web indices for "<strong>${query}</strong>"...</p>`;
 
     try {
-        // Querying Wikimedia open search index which returns real article pages across global databases
-        const response = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=20&format=json&origin=*`);
+        // Fetch top indexed web matches
+        const response = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=15&format=json&origin=*`);
         const data = await response.json();
 
-        resultsDiv.innerHTML = `<h3 style="color: #4db8ff; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;">Open Web Search Results for "${query}"</h3>`;
+        resultsDiv.innerHTML = `<h3 style="color: #4db8ff; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;">Top Web Search Results for "${query}"</h3>`;
 
-        let count = 0;
-
+        // 1. TOP DIRECT RESULTS (Ranked 1st)
         if (data.query && data.query.search && data.query.search.length > 0) {
-            data.query.search.forEach(item => {
-                count++;
+            const topMatch = data.query.search[0];
+            const topUrl = `https://en.wikipedia.org/?curid=${topMatch.pageid}`;
+            const topSnippet = topMatch.snippet.replace(/<\/?[^>]+(>|$)/g, "");
+            
+            // Highlight top #1 result prominently at the very top
+            const topElement = document.createElement('div');
+            topElement.className = 'result-item';
+            topElement.style.borderLeft = '4px solid #4db8ff';
+            topElement.style.background = '#252525';
+            topElement.innerHTML = `
+                <span style="background: #4db8ff; color: #121212; font-size: 0.75rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 6px;">TOP RESULT</span>
+                <br>
+                <a href="#" onclick="openInViewer('${topUrl}')" style="font-size: 1.1rem; font-weight: bold;">${topMatch.title}</a>
+                <p>${topSnippet}</p>
+                <small style="color: #4db8ff; font-size: 0.8rem; word-break: break-all;">${topUrl}</small>
+            `;
+            resultsDiv.appendChild(topElement);
+
+            // Render remaining primary matches right below
+            data.query.search.slice(1).forEach(item => {
                 const cleanSnippet = item.snippet.replace(/<\/?[^>]+(>|$)/g, "");
                 const realUrl = `https://en.wikipedia.org/?curid=${item.pageid}`;
-                
-                // Show the REAL URL below the result title
                 appendResultItem(resultsDiv, item.title, cleanSnippet, realUrl, realUrl);
             });
         }
 
-        // Pull open web directory matches so it expands to massive open-ended web sites
-        const extraSites = [
-            { title: `${query} - Official Portal & Web Index`, url: `https://www.google.com/search?q=${encodeURIComponent(query)}`, desc: `Comprehensive web matches, documents, and portals across all indexed servers for ${query}.` },
-            { title: `${query} - Community Discussions & Forums`, url: `https://www.reddit.com/search/?q=${encodeURIComponent(query)}`, desc: `Real-time user discussions, threads, and community feedback about ${query}.` },
-            { title: `${query} - Video Streams & Media`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, desc: `Trending video content, tutorials, and media channels covering ${query}.` },
-            { title: `${query} - Global News & Press`, url: `https://www.bing.com/news/search?q=${encodeURIComponent(query)}`, desc: `Breaking news coverage, reports, and journal entries regarding ${query}.` },
-            { title: `${query} - Open Source Code & Repositories`, url: `https://github.com/search?q=${encodeURIComponent(query)}`, desc: `Open source code projects, libraries, and developer documentation for ${query}.` }
+        // 2. Massive multi-site open web coverage channels (Reddit, GitHub, News, Global Portals)
+        const massiveWebSites = [
+            { title: `${query} - Official Web Search & Directories`, url: `https://www.google.com/search?q=${encodeURIComponent(query)}`, desc: `Direct web portal results and indexing servers matching ${query}.` },
+            { title: `${query} - Community Discussions & Social Threads`, url: `https://www.reddit.com/search/?q=${encodeURIComponent(query)}`, desc: `Real user conversations, forums, and community channels about ${query}.` },
+            { title: `${query} - Live Global News & Press Coverage`, url: `https://www.bing.com/news/search?q=${encodeURIComponent(query)}`, desc: `Latest news articles, press releases, and journal logs regarding ${query}.` },
+            { title: `${query} - Developer Repositories & Source Code`, url: `https://github.com/search?q=${encodeURIComponent(query)}`, desc: `Open source projects, software libraries, and code packages for ${query}.` }
         ];
 
-        extraSites.forEach(site => {
-            count++;
+        massiveWebSites.forEach(site => {
             appendResultItem(resultsDiv, site.title, site.desc, site.url, site.url);
         });
 
     } catch (error) {
-        resultsDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Network connection error. Please verify your internet connection.</p>`;
+        resultsDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Network connection error. Please verify your connection.</p>`;
     }
 }
 
 async function loadUsuwebNews() {
-    performRealWebSearch("breaking world news headlines");
+    performPrioritizedWebSearch("breaking world news headlines");
 }
 
 function appendResultItem(container, title, snippet, targetUrl, displayUrl) {
     const resultElement = document.createElement('div');
     resultElement.className = 'result-item';
     resultElement.innerHTML = `
-        <a href="#" onclick="openExternalSite('${targetUrl}')">${title}</a>
+        <a href="#" onclick="openInViewer('${targetUrl}')">${title}</a>
         <p>${snippet}</p>
         <small style="color: #4db8ff; font-size: 0.8rem; word-break: break-all;">${displayUrl}</small>
     `;
     container.appendChild(resultElement);
 }
 
-function openExternalSite(url) {
-    window.open(url, '_blank');
+function openInViewer(url) {
+    const resultsDiv = document.getElementById(`results-${activeTabId}`);
+    const webViewer = document.getElementById(`webViewer-${activeTabId}`);
+    
+    resultsDiv.style.display = 'none';
+    webViewer.style.display = 'block';
+    webViewer.src = url;
 }
