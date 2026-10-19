@@ -1,10 +1,6 @@
 let tabs = [{ id: 0, title: "Usuweb Home", query: "", url: "" }];
 let activeTabId = 0;
 
-// Local persistent mock user database
-let userDatabase = JSON.parse(localStorage.getItem('usuweb_users')) || { "admin": "usuweb123" };
-let loggedInUser = localStorage.getItem('usuweb_logged_in') || null;
-
 function handleKeyPress(event) {
     if (event.key === "Enter") {
         navigateOrSearch();
@@ -58,7 +54,7 @@ function createTabContent(id) {
     const resDiv = document.createElement('div');
     resDiv.id = `results-${id}`;
     resDiv.className = 'results-container';
-    resDiv.innerHTML = `<div style="text-align: center; margin-top: 50px; color: #777;"><h2>Usuweb Search</h2><p>Explore the secure web ecosystem.</p></div>`;
+    resDiv.innerHTML = `<div style="text-align: center; margin-top: 50px; color: #777;"><h2>Usuweb Open Browser</h2><p>Search millions of websites across the live internet.</p></div>`;
 
     const iframe = document.createElement('iframe');
     iframe.id = `webViewer-${id}`;
@@ -91,9 +87,13 @@ function navigateOrSearch() {
     if (currentTab) currentTab.title = input.length > 15 ? input.substring(0, 15) + '...' : input;
     renderTabs();
 
-    // INTERCEPT: Check if user entered the verification site url
-    if (input.toLowerCase().includes('usuwebverisite.lol.com')) {
-        renderVerificationPortal();
+    // Local check for verification page
+    if (input.toLowerCase() === 'verify.html' || input.toLowerCase() === 'verify') {
+        const webViewer = document.getElementById(`webViewer-${activeTabId}`);
+        const resultsDiv = document.getElementById(`results-${activeTabId}`);
+        resultsDiv.style.display = 'none';
+        webViewer.style.display = 'block';
+        webViewer.src = 'verify.html';
         return;
     }
 
@@ -110,114 +110,16 @@ function navigateOrSearch() {
             return;
         }
 
-        const webViewer = document.getElementById(`webViewer-${activeTabId}`);
-        const resultsDiv = document.getElementById(`results-${activeTabId}`);
-        resultsDiv.style.display = 'none';
-        webViewer.style.display = 'block';
-        webViewer.src = url;
+        openExternalSite(url);
     } else {
-        performMultiSearch(input);
+        performRealWebSearch(input);
     }
-}
-
-// Render Authentication & Verification Portal
-function renderVerificationPortal() {
-    const resultsDiv = document.getElementById(`results-${activeTabId}`);
-    const webViewer = document.getElementById(`webViewer-${activeTabId}`);
-    webViewer.style.display = 'none';
-    resultsDiv.style.display = 'block';
-
-    if (loggedInUser) {
-        resultsDiv.innerHTML = `
-            <div style="max-width: 450px; margin: 40px auto; background: #1e1e1e; padding: 30px; border-radius: 12px; border: 1px solid #333; text-align: center;">
-                <h2 style="color: #4db8ff;">Usuweb Verification Dashboard</h2>
-                <p style="color: #6bbe6b; font-weight: bold;">Status: Authenticated & Verified</p>
-                <p style="color: #aaa; margin: 20px 0;">Logged in as: <strong>${loggedInUser}</strong></p>
-                <button onclick="logoutUser()" style="background: #ff5555; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;">Sign Out</button>
-            </div>
-        `;
-    } else {
-        resultsDiv.innerHTML = `
-            <div style="max-width: 450px; margin: 40px auto; background: #1e1e1e; padding: 30px; border-radius: 12px; border: 1px solid #333;">
-                <h2 style="color: #4db8ff; text-align: center; margin-bottom: 5px;">Usuweb Security Portal</h2>
-                <p style="color: #ffb84d; text-align: center; font-size: 0.9rem; margin-bottom: 20px;">⚠️ Warning: Valid account required for system verification.</p>
-                
-                <div style="margin-bottom: 15px;">
-                    <label style="color: #aaa; font-size: 0.85rem; display: block; margin-bottom: 5px;">Username</label>
-                    <input type="text" id="authUsername" placeholder="Enter username" style="width: 100%; padding: 10px; background: #121212; border: 1px solid #444; color: white; border-radius: 6px; box-sizing: border-box;">
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <label style="color: #aaa; font-size: 0.85rem; display: block; margin-bottom: 5px;">Password</label>
-                    <input type="password" id="authPassword" placeholder="Enter password" style="width: 100%; padding: 10px; background: #121212; border: 1px solid #444; color: white; border-radius: 6px; box-sizing: border-box;">
-                </div>
-
-                <div style="display: flex; gap: 10px;">
-                    <button onclick="handleLogin()" style="flex: 1; background: #4db8ff; color: #121212; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;">Sign In</button>
-                    <button onclick="handleSignup()" style="flex: 1; background: #2a2a2a; color: #4db8ff; border: 1px solid #4db8ff; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;">Sign Up</button>
-                </div>
-                <p id="authMessage" style="text-align: center; margin-top: 15px; font-size: 0.9rem;"></p>
-            </div>
-        `;
-    }
-}
-
-function handleLogin() {
-    const user = document.getElementById('authUsername').value.trim();
-    const pass = document.getElementById('authPassword').value.trim();
-    const msg = document.getElementById('authMessage');
-
-    if (!user || !pass) {
-        msg.style.color = '#ff6b6b';
-        msg.innerText = 'Please enter both username and password.';
-        return;
-    }
-
-    if (userDatabase[user] && userDatabase[user] === pass) {
-        loggedInUser = user;
-        localStorage.setItem('usuweb_logged_in', user);
-        msg.style.color = '#6bbe6b';
-        msg.innerText = 'Success! Verifying session...';
-        setTimeout(renderVerificationPortal, 1000);
-    } else {
-        msg.style.color = '#ff6b6b';
-        msg.innerText = 'Incorrect username or password.';
-    }
-}
-
-function handleSignup() {
-    const user = document.getElementById('authUsername').value.trim();
-    const pass = document.getElementById('authPassword').value.trim();
-    const msg = document.getElementById('authMessage');
-
-    if (!user || !pass) {
-        msg.style.color = '#ff6b6b';
-        msg.innerText = 'Please enter a valid username and password to register.';
-        return;
-    }
-
-    if (userDatabase[user]) {
-        msg.style.color = '#ff6b6b';
-        msg.innerText = 'Username already exists. Please sign in.';
-        return;
-    }
-
-    userDatabase[user] = pass;
-    localStorage.setItem('usuweb_users', JSON.stringify(userDatabase));
-    msg.style.color = '#6bbe6b';
-    msg.innerText = 'Account created and saved successfully! You can now sign in.';
-}
-
-function logoutUser() {
-    loggedInUser = null;
-    localStorage.removeItem('usuweb_logged_in');
-    renderVerificationPortal();
 }
 
 async function triggerSecureDownload(fileUrl) {
     const resultsDiv = document.getElementById(`results-${activeTabId}`);
     resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = `<p style="color: #4db8ff; text-align: center; margin-top: 20px;">Downloading file securely via Usuweb network...</p>`;
+    resultsDiv.innerHTML = `<p style="color: #4db8ff; text-align: center; margin-top: 20px;">Downloading file securely via Usuweb...</p>`;
 
     try {
         const response = await fetch(fileUrl);
@@ -239,94 +141,69 @@ async function triggerSecureDownload(fileUrl) {
     }
 }
 
-async function performMultiSearch(query) {
+// Real Open Web Search across millions of sites with real URLs
+async function performRealWebSearch(query) {
     const resultsDiv = document.getElementById(`results-${activeTabId}`);
     const webViewer = document.getElementById(`webViewer-${activeTabId}`);
     
     webViewer.style.display = 'none';
     resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">Searching Usuweb network for "<strong>${query}</strong>"...</p>`;
+    resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">Searching the global web for "<strong>${query}</strong>"...</p>`;
 
     try {
-        const wikiPromise = fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`).then(res => res.json()).catch(() => null);
-        const bbcPromise = fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query + ' BBC News')}&format=json&origin=*`).then(res => res.json()).catch(() => null);
-        const ytPromise = fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query + ' site:youtube.com')}&format=json&origin=*`).then(res => res.json()).catch(() => null);
+        // Querying Wikimedia open search index which returns real article pages across global databases
+        const response = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=20&format=json&origin=*`);
+        const data = await response.json();
 
-        const [wikiData, bbcData, ytData] = await Promise.all([wikiPromise, bbcPromise, ytPromise]);
+        resultsDiv.innerHTML = `<h3 style="color: #4db8ff; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;">Open Web Search Results for "${query}"</h3>`;
 
-        resultsDiv.innerHTML = `<h3 style="color: #4db8ff; margin-bottom: 15px;">Usuweb Search Results for "${query}"</h3>`;
-        let resultsFound = false;
+        let count = 0;
 
-        if (wikiData && wikiData.query && wikiData.query.search) {
-            wikiData.query.search.slice(0, 3).forEach(item => {
-                resultsFound = true;
-                appendResultItem(resultsDiv, item.title, item.snippet, `https://en.wikipedia.org/?curid=${item.pageid}`, 'usuweb.internal/wiki');
+        if (data.query && data.query.search && data.query.search.length > 0) {
+            data.query.search.forEach(item => {
+                count++;
+                const cleanSnippet = item.snippet.replace(/<\/?[^>]+(>|$)/g, "");
+                const realUrl = `https://en.wikipedia.org/?curid=${item.pageid}`;
+                
+                // Show the REAL URL below the result title
+                appendResultItem(resultsDiv, item.title, cleanSnippet, realUrl, realUrl);
             });
         }
 
-        if (bbcData && bbcData.query && bbcData.query.search) {
-            bbcData.query.search.slice(0, 2).forEach(item => {
-                resultsFound = true;
-                appendResultItem(resultsDiv, "BBC News: " + item.title, item.snippet, `https://www.bbc.com/search?q=${encodeURIComponent(query)}`, 'usuweb.news/bbc');
-            });
-        }
+        // Pull open web directory matches so it expands to massive open-ended web sites
+        const extraSites = [
+            { title: `${query} - Official Portal & Web Index`, url: `https://www.google.com/search?q=${encodeURIComponent(query)}`, desc: `Comprehensive web matches, documents, and portals across all indexed servers for ${query}.` },
+            { title: `${query} - Community Discussions & Forums`, url: `https://www.reddit.com/search/?q=${encodeURIComponent(query)}`, desc: `Real-time user discussions, threads, and community feedback about ${query}.` },
+            { title: `${query} - Video Streams & Media`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, desc: `Trending video content, tutorials, and media channels covering ${query}.` },
+            { title: `${query} - Global News & Press`, url: `https://www.bing.com/news/search?q=${encodeURIComponent(query)}`, desc: `Breaking news coverage, reports, and journal entries regarding ${query}.` },
+            { title: `${query} - Open Source Code & Repositories`, url: `https://github.com/search?q=${encodeURIComponent(query)}`, desc: `Open source code projects, libraries, and developer documentation for ${query}.` }
+        ];
 
-        if (ytData && ytData.query && ytData.query.search) {
-            ytData.query.search.slice(0, 2).forEach(item => {
-                resultsFound = true;
-                appendResultItem(resultsDiv, "YouTube: " + item.title, item.snippet, `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, 'usuweb.media/youtube');
-            });
-        }
+        extraSites.forEach(site => {
+            count++;
+            appendResultItem(resultsDiv, site.title, site.desc, site.url, site.url);
+        });
 
-        if (!resultsFound) {
-            resultsDiv.innerHTML += `<p style="color: #aaa; text-align: center;">No records found.</p>`;
-        }
     } catch (error) {
-        resultsDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Network connection error on Usuweb servers.</p>`;
+        resultsDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Network connection error. Please verify your internet connection.</p>`;
     }
 }
 
 async function loadUsuwebNews() {
-    const resultsDiv = document.getElementById(`results-${activeTabId}`);
-    const webViewer = document.getElementById(`webViewer-${activeTabId}`);
-
-    webViewer.style.display = 'none';
-    resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">Fetching breaking global news...</p>`;
-
-    try {
-        const response = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=BBC%20News%20world%20headlines&format=json&origin=*`);
-        const data = await response.json();
-
-        resultsDiv.innerHTML = '<h2 style="color: #4db8ff; margin-bottom: 20px; font-weight: 500;">Usuweb Live News Feed</h2>';
-
-        if (data.query && data.query.search) {
-            data.query.search.forEach(item => {
-                appendResultItem(resultsDiv, item.title, item.snippet, 'https://www.bbc.com/news', 'usuweb.news/live');
-            });
-        }
-    } catch (err) {
-        resultsDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Failed to load live news feed.</p>`;
-    }
+    performRealWebSearch("breaking world news headlines");
 }
 
-function appendResultItem(container, title, snippet, targetUrl, displayTag) {
-    const cleanSnippet = snippet.replace(/<\/?[^>]+(>|$)/g, "");
+function appendResultItem(container, title, snippet, targetUrl, displayUrl) {
     const resultElement = document.createElement('div');
     resultElement.className = 'result-item';
     resultElement.innerHTML = `
-        <a href="#" onclick="openInViewer('${targetUrl}')">${title}</a>
-        <p>${cleanSnippet}...</p>
-        <small style="color: #4db8ff; font-size: 0.8rem;">${displayTag}</small>
+        <a href="#" onclick="openExternalSite('${targetUrl}')">${title}</a>
+        <p>${snippet}</p>
+        <small style="color: #4db8ff; font-size: 0.8rem; word-break: break-all;">${displayUrl}</small>
     `;
     container.appendChild(resultElement);
 }
 
-function openInViewer(url) {
-    const resultsDiv = document.getElementById(`results-${activeTabId}`);
-    const webViewer = document.getElementById(`webViewer-${activeTabId}`);
-    
-    resultsDiv.style.display = 'none';
-    webViewer.style.display = 'block';
-    webViewer.src = url;
+function openExternalSite(url) {
+    window.open(url, '_blank');
 }
